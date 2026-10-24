@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4263EB">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="错题本">
+<title>错题本</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Crect%20width='100'%20height='100'%20rx='20'%20fill='%234263EB'/%3E%3Ctext%20x='50'%20y='70'%20font-size='54'%20text-anchor='middle'%20fill='white'%20font-family='sans-serif'%3E%E9%94%99%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <div class="app-logo">错</div>
+    <div>
+      <h1>错题本</h1>
+      <p>拍照收集各科错题，按科目导出 PDF</p>
+    </div>
+    <div class="header-count" id="headerCount" hidden>共 0 题</div>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- ============ 录入视图 ============ -->
+  <section id="viewAdd" class="view">
+    <div class="card">
+      <div class="field-label">科目 <span class="req">*</span></div>
+      <div class="subject-grid" id="addSubjects"></div>
+
+      <div class="field-label">错题日期</div>
+      <input type="date" id="addDate" class="input">
+
+      <div class="field-label">错题照片 <span class="req">*</span></div>
+      <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="拍照或选择图片">
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none"><path d="M4 8.5h3.2l2.2-3h5.2l2.2 3H20a1 1 0 0 1 1 1V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3.4" stroke="currentColor" stroke-width="1.8"/></svg>
+        </div>
+        <div class="upload-text">点击拍照或选择图片</div>
+        <div class="upload-hint">可一次选择多张，每张照片保存为一道错题</div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" multiple hidden>
+      <div class="preview-grid" id="previewGrid" hidden></div>
+      <p class="preview-tip" id="previewTip" hidden>提示：点击照片可进入编辑，擦除手写笔迹</p>
+
+      <div class="field-label">备注（选填）</div>
+      <textarea id="addNote" class="input" rows="2" maxlength="200" placeholder="例如：分数应用题，除法算错"></textarea>
+
+      <div class="save-area">
+        <button class="btn btn-primary btn-block" id="saveBtn" disabled>保存错题</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 错题本视图 ============ -->
+  <section id="viewList" class="view" hidden>
+    <div class="card filter-card">
+      <div class="chip-row" id="filterSubjects"></div>
+      <div class="date-filter">
+        <input type="date" id="filterFrom" class="input input-date" title="开始日期" aria-label="开始日期">
+        <span class="dash">至</span>
+        <input type="date" id="filterTo" class="input input-date" title="结束日期" aria-label="结束日期">
+        <button class="btn-reset" id="filterReset" type="button">重置</button>
+      </div>
+    </div>
+
+    <div class="list-toolbar">
+      <div class="list-count" id="listCount">共 0 题</div>
+      <button class="btn btn-primary" id="openExport" type="button">导出 PDF</button>
+    </div>
+
+    <div id="listBody"></div>
+
+    <p class="storage-note">数据保存在本设备的浏览器中，建议定期导出 PDF 备份</p>
+  </section>
+
+</main>
+
+<!-- ============ 底部导航 ============ -->
+<nav class="bottom-nav">
+  <button class="nav-item active" data-view="add" type="button">
+    <span class="nav-icon">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </span>
+    <span>录入</span>
+  </button>
+  <button class="nav-item" data-view="list" type="button">
+    <span class="nav-icon">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 17a3 3 0 0 1 3-3h11" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+    </span>
+    <span>错题本</span>
+    <span class="nav-badge" id="navBadge" hidden>0</span>
+  </button>
+</nav>
+
+<!-- ============ 导出弹窗 ============ -->
+<div class="modal-mask align-end" id="exportModal" hidden>
+  <div class="modal sheet" role="dialog" aria-label="导出 PDF">
+    <div class="sheet-bar"></div>
+    <h3 class="modal-title">导出 PDF</h3>
+    <div class="field-label">科目（每次导出一个科目）</div>
+    <div class="chip-row" id="exportSubjects"></div>
+    <div class="field-label">日期范围（选填）</div>
+    <div class="date-filter">
+      <input type="date" id="exportFrom" class="input input-date" aria-label="开始日期">
+      <span class="dash">至</span>
+      <input type="date" id="exportTo" class="input input-date" aria-label="结束日期">
+    </div>
+    <div class="export-summary" id="exportSummary">请选择科目</div>
+    <button class="btn btn-primary btn-block" id="exportBtn" disabled>生成 PDF</button>
+    <button class="btn-ghost btn-block" id="exportCancel" type="button">取消</button>
+  </div>
+</div>
+
+<!-- ============ 确认弹窗 ============ -->
+<div class="modal-mask align-center" id="confirmModal" hidden>
+  <div class="modal dialog" role="alertdialog" aria-label="确认操作">
+    <h3 class="modal-title" id="confirmTitle"></h3>
+    <p class="dialog-text" id="confirmText"></p>
+    <div class="dialog-btns">
+      <button class="btn-ghost" id="confirmNo" type="button">取消</button>
+      <button class="btn-danger" id="confirmYes" type="button">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 擦除手写编辑器（全屏） ============ -->
+<div class="editor" id="editor" hidden>
+  <div class="editor-top">
+    <button class="editor-icon-btn" id="editorClose" type="button" aria-label="关闭编辑器">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="editor-title">擦除手写</div>
+    <button class="editor-icon-btn" id="editorUndo" type="button" aria-label="撤销一步" disabled>
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none"><path d="M8 5L3 10l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 10h11a6 6 0 0 1 6 6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <button class="editor-icon-btn" id="editorReset" type="button" aria-label="恢复原图">
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none"><path d="M20 12a8 8 0 1 1-2.4-5.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 3v4.2h-4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="btn btn-primary editor-done" id="editorDone" type="button">完成</button>
+  </div>
+  <div class="editor-toolbar">
+    <div class="seg" id="editorModeSeg">
+      <button class="seg-btn active" data-mode="erase" type="button">擦除</button>
+      <button class="seg-btn" data-mode="pan" type="button">移动</button>
+    </div>
+    <div class="seg" id="editorBrushSeg">
+      <button class="seg-btn" data-brush="s" type="button">细</button>
+      <button class="seg-btn active" data-brush="m" type="button">中</button>
+      <button class="seg-btn" data-brush="l" type="button">粗</button>
+    </div>
+    <div class="seg" id="editorZoomSeg">
+      <button class="seg-btn active" data-zoom="1" type="button">1x</button>
+      <button class="seg-btn" data-zoom="2" type="button">2x</button>
+      <button class="seg-btn" data-zoom="3" type="button">3x</button>
+    </div>
+  </div>
+  <div class="editor-canvas-wrap" id="editorWrap">
+    <div class="editor-canvas-inner">
+      <canvas id="editorCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/db.js"></script>
+<script src="js/pdf.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
