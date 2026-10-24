@@ -7,7 +7,7 @@
  * 注意：更新了 css/js 等文件后，请把 CACHE_NAME 的版本号 +1
  * （如 v1 改为 v2），用户下次打开时会自动获取新版本。
  */
-var CACHE_NAME = 'cuotiben-v1';
+var CACHE_NAME = 'cuotiben-v2';
 var ASSETS = [
   './',
   './index.html',

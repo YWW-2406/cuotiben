@@ -146,8 +146,8 @@ function renderPending() {
     img.alt = '待保存照片，点击可擦除手写';
 
     var badge = document.createElement('div');
-    badge.className = 'preview-badge';
-    badge.innerHTML = SVG_ERASER;
+    badge.className = 'preview-edit';
+    badge.innerHTML = SVG_ERASER + '<span>擦除手写</span>';
 
     var btn = document.createElement('button');
     btn.type = 'button';
@@ -283,6 +283,7 @@ function renderList() {
 
   var body = $('listBody');
   body.innerHTML = '';
+  $('listTip').hidden = list.length === 0;
   if (!list.length) {
     body.appendChild(buildEmpty());
     return;
@@ -316,11 +317,19 @@ function buildCard(q) {
   var s = subjectStyle(q.subject);
   var card = document.createElement('div');
   card.className = 'q-card card';
+  card.onclick = function () { openSavedEditor(q); };
 
+  var thumbWrap = document.createElement('div');
+  thumbWrap.className = 'q-thumb-wrap';
   var img = document.createElement('img');
   img.className = 'q-thumb';
   img.src = thumbUrl(q);
-  img.alt = q.subject + '错题';
+  img.alt = q.subject + '错题，点击擦除手写';
+  var editBadge = document.createElement('div');
+  editBadge.className = 'q-edit-badge';
+  editBadge.innerHTML = SVG_ERASER;
+  thumbWrap.appendChild(img);
+  thumbWrap.appendChild(editBadge);
 
   var bodyEl = document.createElement('div');
   bodyEl.className = 'q-body';
@@ -350,9 +359,12 @@ function buildCard(q) {
   del.className = 'q-del';
   del.setAttribute('aria-label', '删除这道错题');
   del.innerHTML = SVG_TRASH;
-  del.onclick = function () { deleteQuestion(q); };
+  del.onclick = function (e) {
+    e.stopPropagation();
+    deleteQuestion(q);
+  };
 
-  card.appendChild(img);
+  card.appendChild(thumbWrap);
   card.appendChild(bodyEl);
   card.appendChild(del);
   return card;
@@ -482,7 +494,7 @@ function exportPdf() {
  * 撤销采用笔迹重放：只记录触点序列，内存占用极小。
  */
 var editor = {
-  idx: -1,          /* 正在编辑 state.pending 的下标 */
+  target: null,     /* 正在编辑的对象：{type:'pending', idx} 或 {type:'saved', record} */
   img: null,        /* 原始图片对象（用于重放） */
   ctx: null,
   strokes: [],      /* 已完成笔迹 [{size, points:[{x,y,color}]}] */
@@ -500,13 +512,24 @@ function brushSizePx() {
   return base * 0.032;
 }
 
+/* 编辑录入页待保存的照片 */
 function openEditor(i) {
   var p = state.pending[i];
   if (!p) return;
-  var url = URL.createObjectURL(p.blob);
+  startEditor(p.blob, { type: 'pending', idx: i });
+}
+
+/* 编辑已保存的错题 */
+function openSavedEditor(q) {
+  if (!q || !q.imgData) return;
+  startEditor(q.imgData, { type: 'saved', record: q });
+}
+
+function startEditor(blob, target) {
+  var url = URL.createObjectURL(blob);
   loadImage(url).then(function (img) {
     URL.revokeObjectURL(url);
-    editor.idx = i;
+    editor.target = target;
     editor.img = img;
     editor.strokes = [];
     editor.current = null;
@@ -531,7 +554,7 @@ function openEditor(i) {
 function closeEditor() {
   $('editor').hidden = true;
   document.body.style.overflow = '';
-  editor.idx = -1;
+  editor.target = null;
   editor.img = null;
   editor.current = null;
 }
@@ -707,22 +730,53 @@ function bindEditorEvents() {
   };
 
   $('editorDone').onclick = function () {
-    if (editor.idx < 0) return;
+    var t = editor.target;
+    if (!t) return;
     if (!editor.strokes.length) { closeEditor(); return; } /* 无修改不重复压缩 */
     var cnv = $('editorCanvas');
     cnv.toBlob(function (blob) {
       if (!blob) { toast('保存失败，请重试'); return; }
-      var p = state.pending[editor.idx];
-      if (p) {
-        URL.revokeObjectURL(p.url);
-        p.blob = blob;
-        p.w = cnv.width;
-        p.h = cnv.height;
-        p.url = URL.createObjectURL(blob);
+
+      if (t.type === 'pending') {
+        /* 录入页：替换待保存照片 */
+        var p = state.pending[t.idx];
+        if (p) {
+          URL.revokeObjectURL(p.url);
+          p.blob = blob;
+          p.w = cnv.width;
+          p.h = cnv.height;
+          p.url = URL.createObjectURL(blob);
+        }
+        closeEditor();
+        renderPending();
+        toast('已应用擦除效果');
+      } else {
+        /* 错题本页：更新已保存的错题记录 */
+        var q = t.record;
+        var rec = {
+          id: q.id,
+          subject: q.subject,
+          date: q.date,
+          note: q.note,
+          imgData: blob,
+          w: cnv.width,
+          h: cnv.height,
+          created: q.created
+        };
+        DB.update(rec).then(function () {
+          if (urlCache[q.id]) {
+            URL.revokeObjectURL(urlCache[q.id]);
+            delete urlCache[q.id];
+          }
+          closeEditor();
+          return refreshQuestions();
+        }).then(function () {
+          toast('已更新错题照片');
+        }, function (err) {
+          console.error(err);
+          toast('保存失败，请重试');
+        });
       }
-      closeEditor();
-      renderPending();
-      toast('已应用擦除效果');
     }, 'image/jpeg', 0.85);
   };
 

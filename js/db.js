@@ -49,5 +49,12 @@ var DB = (function () {
     });
   }
 
-  return { open: open, add: add, getAll: getAll, remove: remove };
+  /* 更新已有错题（record 须含 id，整条替换） */
+  function update(record) {
+    return open().then(function () {
+      return toPromise(db.transaction(STORE, 'readwrite').objectStore(STORE).put(record));
+    });
+  }
+
+  return { open: open, add: add, getAll: getAll, remove: remove, update: update };
 })();

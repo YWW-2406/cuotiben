@@ -564,7 +564,28 @@ textarea.input { resize: vertical; }
   color: var(--text-3);
   margin-top: 8px;
 }
-.preview-badge {
+.list-tip { margin: 0 2px 10px; }
+
+/* 缩略图上的「擦除手写」标签条 */
+.preview-edit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(23, 26, 35, 0.72);
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  border-radius: 0 0 9px 9px;
+  pointer-events: none;
+}
+.preview-edit svg { margin-right: 3px; }
+
+/* 错题卡片上的编辑角标 */
+.q-edit-badge {
   position: absolute;
   left: 4px;
   bottom: 4px;
@@ -575,6 +596,9 @@ textarea.input { resize: vertical; }
   display: flex; align-items: center; justify-content: center;
   pointer-events: none;
 }
+.q-thumb-wrap { position: relative; flex-shrink: 0; }
+.q-card { cursor: pointer; }
+.q-card:active { background: #f6f8fd; }
 
 /* ================= 桌面端微调 ================= */
 @media (min-width: 760px) {
